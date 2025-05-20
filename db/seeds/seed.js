@@ -1,17 +1,22 @@
-const pool = require('../connection');
-const { users, films, watchlist, watched, comments } = require('../data/development-data');
+const pool = require("../connection");
+const {
+  users,
+  films,
+  watchlist,
+  watched,
+  comments,
+} = require("../data/development-data");
 
 async function seed() {
   try {
-   
     //----------------------------------------------------------------REMEBER TO REMOVE------------------------------------------------------------------------
-    await pool.query('DROP TABLE IF EXISTS comments CASCADE');
-    await pool.query('DROP TABLE IF EXISTS watchlist CASCADE');
-    await pool.query('DROP TABLE IF EXISTS watched CASCADE');
-    await pool.query('DROP TABLE IF EXISTS users CASCADE');
-    await pool.query('DROP TABLE IF EXISTS films CASCADE');
+    await pool.query("DROP TABLE IF EXISTS comments CASCADE");
+    await pool.query("DROP TABLE IF EXISTS watchlist CASCADE");
+    await pool.query("DROP TABLE IF EXISTS watched CASCADE");
+    await pool.query("DROP TABLE IF EXISTS users CASCADE");
+    await pool.query("DROP TABLE IF EXISTS films CASCADE");
     //----------------------------------------------------------------REMEBER TO REMOVE------------------------------------------------------------------------
-    
+
     await pool.query(`
       CREATE TABLE users (
         id SERIAL PRIMARY KEY,
@@ -67,7 +72,6 @@ async function seed() {
       );
     `);
 
-    
     for (const { username, email, password } of users) {
       await pool.query(
         `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`,
@@ -75,24 +79,32 @@ async function seed() {
       );
     }
 
-    for (const { tmdb_id, title, release_date, poster_url, overview } of films) {
+    for (const {
+      tmdb_id,
+      title,
+      release_date,
+      poster_url,
+      overview,
+    } of films) {
       await pool.query(
         `INSERT INTO films (tmdb_id, title, release_date, poster_url, overview) VALUES ($1, $2, $3, $4, $5)`,
         [tmdb_id, title, release_date, poster_url, overview]
       );
     }
 
+    const usersRes = await pool.query("SELECT id, username FROM users");
+    const filmsRes = await pool.query("SELECT id, tmdb_id FROM films");
 
-    const usersRes = await pool.query('SELECT id, username FROM users');
-    const filmsRes = await pool.query('SELECT id, tmdb_id FROM films');
+    const userIdMap = new Map(
+      usersRes.rows.map((row) => [row.username, row.id])
+    );
+    const filmIdMap = new Map(
+      filmsRes.rows.map((row) => [row.tmdb_id, row.id])
+    );
 
-    const userIdMap = new Map(usersRes.rows.map(row => [row.username, row.id]));
-    const filmIdMap = new Map(filmsRes.rows.map(row => [row.tmdb_id, row.id]));
-
-  
     for (const entry of watchlist) {
-      const user_id = userIdMap.get(entry.username);  
-      const film_id = filmIdMap.get(entry.tmdb_id);  
+      const user_id = userIdMap.get(entry.username);
+      const film_id = filmIdMap.get(entry.tmdb_id);
       if (user_id && film_id) {
         await pool.query(
           `INSERT INTO watchlist (user_id, film_id) VALUES ($1, $2)`,
@@ -101,7 +113,6 @@ async function seed() {
       }
     }
 
-   
     for (const entry of watched) {
       const user_id = userIdMap.get(entry.username);
       const film_id = filmIdMap.get(entry.tmdb_id);
@@ -113,21 +124,21 @@ async function seed() {
       }
     }
 
-    for (const { username, tmdb_id, content } of comments) {
+    for (const { username, tmdb_id, content, rating } of comments) {
       const user_id = userIdMap.get(username);
       const film_id = filmIdMap.get(tmdb_id);
       if (user_id && film_id) {
         await pool.query(
-          `INSERT INTO comments (user_id, film_id, content) VALUES ($1, $2, $3)`,
-          [user_id, film_id, content]
+          `INSERT INTO comments (user_id, film_id, content, rating) VALUES ($1, $2, $3, $4)`,
+          [user_id, film_id, content, rating]
         );
       }
     }
 
-    console.log('Database seeded successfully!');
+    console.log("Database seeded successfully!");
     process.exit(0);
   } catch (err) {
-    console.error('Seeding failed:', err);
+    console.error("Seeding failed:", err);
     process.exit(1);
   }
 }
